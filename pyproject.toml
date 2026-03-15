@@ -1,0 +1,14 @@
+[project]
+name = "databricks-platform-ops-agent"
+version = "0.1.0"
+description = "AI-powered audit agent for Databricks Terraform configurations"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "python-hcl2>=4.0.0",
+    "click>=8.0.0",
+]
+
+[project.scripts]
+dbx-audit = "main:main"
