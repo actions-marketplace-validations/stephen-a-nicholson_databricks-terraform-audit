@@ -38,6 +38,7 @@ Markdown audit report with findings + suggested fixes
 ## Tech stack
 
 - Python 3.11+
+- `uv` for dependency management and packaging
 - `python-hcl2` for HCL parsing
 - `click` for CLI
 - `dataclasses` for the Finding model
@@ -54,10 +55,10 @@ Markdown audit report with findings + suggested fixes
 
 ```bash
 # Install dependencies
-pip install python-hcl2 click
+uv sync
 
 # Run the audit
-python main.py ./examples/sample-terraform/
+uv run python main.py ./examples/sample-terraform/
 
 # Output: audit_report.md in the current directory
 ```

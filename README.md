@@ -32,13 +32,13 @@ git clone https://github.com/YOUR_USERNAME/databricks-platform-ops-agent.git
 cd databricks-platform-ops-agent
 
 # Install dependencies
-pip install python-hcl2 click
+uv sync
 
 # Run against the sample Terraform (ships with deliberate issues)
-python main.py ./examples/sample-terraform/
+uv run python main.py ./examples/sample-terraform/
 
 # Run against your own Terraform
-python main.py /path/to/your/terraform/
+uv run python main.py /path/to/your/terraform/
 ```
 
 ## Example output
@@ -91,8 +91,7 @@ Each subagent runs in its own context window with `Read`, `Grep`, and `Glob` too
 ## Requirements
 
 - Python 3.11+
-- `python-hcl2` — HCL parser
-- `click` — CLI framework
+- [uv](https://docs.astral.sh/uv/) — package manager (`pip install uv` or see uv docs)
 - No Terraform CLI, no cloud credentials, no API keys
 
 ## License
