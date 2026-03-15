@@ -7,7 +7,7 @@ A CLI tool that audits Databricks Terraform configurations using specialised AI 
 ## Architecture
 
 ```
-User runs: python main.py ./path/to/terraform/
+User runs: uv run python main.py ./path/to/terraform/
     │
     ▼
 Orchestrator (orchestrator.py)
