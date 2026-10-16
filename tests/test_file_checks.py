@@ -92,7 +92,7 @@ def test_vnet_injection(tf) -> None:
     no_scc = 'resource "azurerm_databricks_workspace" "w" { custom_parameters { virtual_network_id = "v" } }'
     full = 'resource "azurerm_databricks_workspace" "w" { custom_parameters { virtual_network_id = "v" no_public_ip = true } }'
     assert [f.severity.value for f in check_vnet_injection(*tf(none))] == ["CRITICAL"]
-    assert [f.severity.value for f in check_vnet_injection(*tf(no_scc))] == ["HIGH"]
+    assert [f.severity.value for f in check_vnet_injection(*tf(no_scc))] == ["LOW"]
     assert check_vnet_injection(*tf(full)) == []
 
 
@@ -109,3 +109,19 @@ def test_workspace_sku(tf) -> None:
 def test_legacy_hive_metastore(tf) -> None:
     assert check_legacy_hive_metastore(*tf('resource "databricks_grants" "g" { catalog = "hive_metastore" }')) != []
     assert check_legacy_hive_metastore(*tf('resource "databricks_grants" "g" { catalog = "main" }')) == []
+
+
+def test_scc_explicit_false_is_high_and_unset_is_low(tf) -> None:
+    off = 'resource "azurerm_databricks_workspace" "w" { custom_parameters { virtual_network_id = "v" no_public_ip = false } }'
+    unset = 'resource "azurerm_databricks_workspace" "w" { custom_parameters { virtual_network_id = "v" } }'
+    assert [f.severity.value for f in check_vnet_injection(*tf(off))] == ["HIGH"]
+    assert [f.severity.value for f in check_vnet_injection(*tf(unset))] == ["LOW"]
+
+
+def test_workspace_public_access_unset_is_medium(tf) -> None:
+    unset = 'resource "azurerm_databricks_workspace" "w" { name = "w" }'
+    off = 'resource "azurerm_databricks_workspace" "w" { public_network_access_enabled = false }'
+    assert [f.severity.value for f in check_public_network_access(*tf(unset))] == ["MEDIUM"]
+    assert check_public_network_access(*tf(off)) == []
+    # Only workspaces are flagged for relying on the default.
+    assert check_public_network_access(*tf('resource "azurerm_storage_account" "s" { name = "s" }')) == []

@@ -58,15 +58,32 @@ def check_vnet_injection(parsed: dict, filepath: Path) -> list[Finding]:
                     "}"
                 ),
             ))
-        elif not cp.get("no_public_ip"):
+        elif cp.get("no_public_ip") is False:
             findings.append(Finding(
                 severity=Severity.HIGH,
                 category=Category.DATABRICKS,
-                title="Secure cluster connectivity not enabled",
+                title="Secure cluster connectivity disabled",
                 message=(
-                    f"Workspace '{rname}' has VNet injection but "
-                    f"no_public_ip is not set to true. Enable secure cluster "
-                    f"connectivity to prevent cluster nodes from getting public IPs."
+                    f"Workspace '{rname}' explicitly sets no_public_ip = false, so "
+                    f"cluster nodes get public IP addresses. The provider has defaulted "
+                    f"this to true since azurerm v3.104.0; turning it off is a deliberate "
+                    f"choice that almost no enterprise network policy allows."
+                ),
+                filepath=filepath,
+                resource_address=f"azurerm_databricks_workspace.{rname}",
+                suggested_fix="no_public_ip = true",
+            ))
+        elif "no_public_ip" not in cp:
+            findings.append(Finding(
+                severity=Severity.LOW,
+                category=Category.DATABRICKS,
+                title="Secure cluster connectivity relies on provider default",
+                message=(
+                    f"Workspace '{rname}' does not set no_public_ip. Since azurerm "
+                    f"v3.104.0 the default is true, so this is fine on a current provider, "
+                    f"but on older pinned versions the default was false and nodes got "
+                    f"public IPs. Set it explicitly so a reviewer does not have to know "
+                    f"which provider version you are on."
                 ),
                 filepath=filepath,
                 resource_address=f"azurerm_databricks_workspace.{rname}",

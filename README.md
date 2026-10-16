@@ -119,13 +119,17 @@ The pattern is the point: the tool drafts, a reviewer (human or agent) has to be
 
 ```bash
 uv sync --extra dev
-uv run pytest -q         # 24 tests, including the two shipped examples
+uv run pytest -q         # 26 tests, including the two shipped examples
 uv run ruff check .
 ```
 
 `examples/clean-terraform/` is a small multi-file platform that must produce zero findings. `examples/sample-terraform/` is a single file that must keep its three criticals. Both are asserted in CI, so a rule change that introduces a false positive fails the build.
 
 To add a rule, see the bottom of [`docs/RULES.md`](docs/RULES.md).
+
+## Run against real code
+
+[`docs/experiments/`](docs/experiments/README.md) has the results of running the tool over every Azure example and module in Databricks' own Terraform examples repo: 131 findings across 29 directories, and one false positive in this tool that the exercise caught.
 
 ## Licence
 

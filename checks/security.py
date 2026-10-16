@@ -7,10 +7,17 @@ from checks.models import Category, Finding, Severity
 
 
 def check_public_network_access(parsed: dict, filepath: Path) -> list[Finding]:
-    """Flag resources with public network access enabled."""
+    """Flag resources exposed to the public internet.
+
+    Explicit ``public_network_access_enabled = true`` is CRITICAL on any resource.
+    A Databricks workspace that leaves it unset is also public, because the
+    provider default is true, so that is flagged at MEDIUM: it is the normal
+    state for a workspace without Private Link, but a reviewer should see it.
+    """
     findings: list[Finding] = []
     for rtype, rname, config in iter_resources(parsed):
-        if config.get("public_network_access_enabled") is True:
+        value = config.get("public_network_access_enabled")
+        if value is True:
             findings.append(Finding(
                 severity=Severity.CRITICAL,
                 category=Category.SECURITY,
@@ -27,6 +34,21 @@ def check_public_network_access(parsed: dict, filepath: Path) -> list[Finding]:
                     f"  public_network_access_enabled = false\n"
                     f"}}"
                 ),
+            ))
+        elif rtype == "azurerm_databricks_workspace" and "public_network_access_enabled" not in config:
+            findings.append(Finding(
+                severity=Severity.MEDIUM,
+                category=Category.SECURITY,
+                title="Workspace public network access relies on provider default",
+                message=(
+                    f"Workspace '{rname}' does not set public_network_access_enabled. "
+                    f"The provider default is true, so the workspace front end is "
+                    f"reachable from the internet. If that is intended, say so "
+                    f"explicitly; if not, set it to false and use Private Link."
+                ),
+                filepath=filepath,
+                resource_address=f"{rtype}.{rname}",
+                suggested_fix="public_network_access_enabled = false",
             ))
     return findings
 
