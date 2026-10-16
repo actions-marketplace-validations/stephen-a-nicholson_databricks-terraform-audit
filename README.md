@@ -87,6 +87,10 @@ jobs:
 
 The job fails on any CRITICAL or HIGH finding, the full report goes into the job summary, and it's uploaded as an artifact. Set `fail-on: none` to run it as advisory only.
 
+## Alongside Checkov and Trivy
+
+Run them too. They cover general Azure and storage hardening with thousands of policies; between them they have two rules for Databricks (Checkov: private link for the control plane, CMK for DBFS root) and Trivy has none. This tool is the Databricks layer: networking model, Unity Catalog, cluster governance, SKU, and the provider defaults that quietly decide whether a workspace is public. On Databricks' own examples the two sets of findings had no overlap; see [`docs/experiments/`](docs/experiments/README.md).
+
 ## What it checks
 
 Fifteen rules across three areas. Each one is documented in [`docs/RULES.md`](docs/RULES.md) with the reasoning.

@@ -29,5 +29,26 @@ What it told me, in order of usefulness:
    Overwatch main workspace module, which creates a workspace with managed
    networking and no VNet injection.
 
+## Against Checkov
+
+Checkov 3.3.29 run over the same 29 directories, `--framework terraform`, no
+external module download:
+
+| | Findings | On Databricks workspaces | From how many rules |
+|---|---|---|---|
+| Checkov | 377 | 39 | 2 (`CKV_AZURE_158` private link, `CKV2_AZURE_48` CMK for DBFS root) |
+| This tool | 131 | 39 | 6 |
+
+![Coverage matrix](coverage_matrix.png)
+
+The two sets of Databricks findings do not overlap at all. Checkov's two
+checks are enterprise hardening on a workspace that is otherwise assumed
+correct; this tool's rules are about whether the workspace is structurally
+right (networking model, governance, cluster governance, SKU). Checkov's other
+338 findings are mostly storage-account hardening (shared key auth, SAS expiry,
+soft delete, customer-managed keys) that this tool does not attempt. Trivy's
+check library has no Databricks rules at all. The honest conclusion is to run
+both: Checkov or Trivy for general Azure, this for the Databricks layer.
+
 Reproduce: clone the two repos, run `main.py <dir> -q -f json -o results/<name>.json`
-per directory, then `python chart.py` with `summary.json` in `results/`.
+per directory, then `python chart.py` with `summary.json` in `results/`. For Checkov, `checkov -d <dir> --framework terraform -o json --skip-download` per directory, then `comparison.json` and `matrix.py`.

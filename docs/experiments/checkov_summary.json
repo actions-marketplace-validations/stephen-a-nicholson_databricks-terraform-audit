@@ -1,0 +1,155 @@
+{
+ "total": 377,
+ "databricks": 26,
+ "byres": [
+  [
+   "module",
+   153
+  ],
+  [
+   "azurerm_storage_account",
+   153
+  ],
+  [
+   "azurerm_databricks_workspace",
+   26
+  ],
+  [
+   "azurerm_key_vault",
+   11
+  ],
+  [
+   "azurerm_firewall",
+   6
+  ],
+  [
+   "azurerm_storage_container",
+   6
+  ],
+  [
+   "azurerm_network_interface",
+   4
+  ],
+  [
+   "azurerm_windows_virtual_machine",
+   4
+  ],
+  [
+   "azurerm_subnet",
+   3
+  ],
+  [
+   "azurerm_data_factory",
+   3
+  ],
+  [
+   "azurerm_key_vault_secret",
+   3
+  ],
+  [
+   "azurerm_virtual_machine",
+   2
+  ],
+  [
+   "azurerm_linux_virtual_machine",
+   1
+  ],
+  [
+   "azurerm_network_security_rule",
+   1
+  ],
+  [
+   "azurerm_virtual_machine_scale_set",
+   1
+  ]
+ ],
+ "dbx_checks": [
+  [
+   "CKV2_AZURE_48",
+   "Ensure that Databricks Workspaces enables customer-managed key for root DBFS encryption",
+   15
+  ],
+  [
+   "CKV_AZURE_158",
+   "Ensure Databricks Workspace data plane to control plane communication happens over private link",
+   11
+  ]
+ ],
+ "top": [
+  [
+   "CKV2_AZURE_48",
+   "Ensure that Databricks Workspaces enables customer-managed key for root DBFS encryption",
+   23
+  ],
+  [
+   "CKV2_AZURE_47",
+   "Ensure storage account is configured without blob anonymous access",
+   22
+  ],
+  [
+   "CKV2_AZURE_38",
+   "Ensure soft-delete is enabled on Azure storage account",
+   22
+  ],
+  [
+   "CKV2_AZURE_40",
+   "Ensure storage account is not configured with Shared Key authorization",
+   22
+  ],
+  [
+   "CKV2_AZURE_41",
+   "Ensure storage account is configured with SAS expiration policy",
+   22
+  ],
+  [
+   "CKV2_AZURE_1",
+   "Ensure storage for critical data are encrypted with Customer Managed Key",
+   22
+  ],
+  [
+   "CKV_AZURE_59",
+   "Ensure that Storage accounts disallow public access",
+   20
+  ],
+  [
+   "CKV_AZURE_190",
+   "Ensure that Storage blobs restrict public access",
+   20
+  ],
+  [
+   "CKV_AZURE_244",
+   "Avoid the use of local users for Azure Storage unless necessary",
+   20
+  ],
+  [
+   "CKV_AZURE_33",
+   "Ensure Storage logging is enabled for Queue service for read, write and delete requests",
+   20
+  ],
+  [
+   "CKV_AZURE_44",
+   "Ensure Storage Account is using the latest version of TLS encryption",
+   20
+  ],
+  [
+   "CKV2_AZURE_33",
+   "Ensure storage account is configured with private endpoint",
+   19
+  ],
+  [
+   "CKV_AZURE_206",
+   "Ensure that Storage Accounts use replication",
+   18
+  ],
+  [
+   "CKV_AZURE_158",
+   "Ensure Databricks Workspace data plane to control plane communication happens over private link",
+   16
+  ],
+  [
+   "CKV2_AZURE_21",
+   "Ensure Storage logging is enabled for Blob service for read requests",
+   10
+  ]
+ ]
+}
