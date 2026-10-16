@@ -24,7 +24,7 @@ wheels = [
 ]
 
 [[package]]
-name = "databricks-platform-ops-agent"
+name = "databricks-terraform-audit"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

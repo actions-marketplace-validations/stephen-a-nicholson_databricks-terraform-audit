@@ -1,4 +1,4 @@
-"""CLI entrypoint for the Databricks Platform Ops Agent."""
+"""CLI entrypoint for the Databricks Terraform Audit."""
 
 import json
 import sys

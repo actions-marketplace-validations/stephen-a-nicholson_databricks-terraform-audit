@@ -27,7 +27,7 @@ runs:
 
     - name: Install the audit tool
       shell: bash
-      run: uv tool install "git+https://github.com/stephen-a-nicholson/databricks-platform-ops-agent@${{ github.action_ref || 'main' }}"
+      run: uv tool install "git+https://github.com/stephen-a-nicholson/databricks-terraform-audit@${{ github.action_ref || 'main' }}"
 
     - name: Run audit
       shell: bash

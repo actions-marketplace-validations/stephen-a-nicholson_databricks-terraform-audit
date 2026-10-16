@@ -1,5 +1,5 @@
 [project]
-name = "databricks-platform-ops-agent"
+name = "databricks-terraform-audit"
 version = "0.1.0"
 description = "Audits Databricks Terraform for security, standards and platform misconfigurations, and explains why each one matters"
 readme = "README.md"
@@ -11,8 +11,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/stephen-a-nicholson/databricks-platform-ops-agent"
-Issues = "https://github.com/stephen-a-nicholson/databricks-platform-ops-agent/issues"
+Homepage = "https://github.com/stephen-a-nicholson/databricks-terraform-audit"
+Issues = "https://github.com/stephen-a-nicholson/databricks-terraform-audit/issues"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.6"]
@@ -34,3 +34,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["."]
+
+[tool.ruff.lint.per-file-ignores]
+"docs/experiments/*.py" = ["I001", "SIM115", "E402", "E702", "E701", "PLR"]

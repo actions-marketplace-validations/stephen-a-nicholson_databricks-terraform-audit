@@ -1,4 +1,4 @@
-# databricks-platform-ops-agent
+# databricks-terraform-audit
 
 Audits Databricks Terraform for security, standards and platform misconfigurations, and explains why each one matters.
 
@@ -33,8 +33,8 @@ This tool asks the question first. Every rule in [`docs/RULES.md`](docs/RULES.md
 ## Quick start
 
 ```bash
-git clone https://github.com/stephen-a-nicholson/databricks-platform-ops-agent.git
-cd databricks-platform-ops-agent
+git clone https://github.com/stephen-a-nicholson/databricks-terraform-audit.git
+cd databricks-terraform-audit
 uv sync
 
 # Against the shipped example (deliberately broken)
@@ -47,7 +47,7 @@ uv run python main.py /path/to/your/terraform/
 Or install it as a tool:
 
 ```bash
-uv tool install git+https://github.com/stephen-a-nicholson/databricks-platform-ops-agent
+uv tool install git+https://github.com/stephen-a-nicholson/databricks-terraform-audit
 dbx-audit /path/to/your/terraform/
 ```
 
@@ -79,7 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: stephen-a-nicholson/databricks-platform-ops-agent@v0.1.0
+      - uses: stephen-a-nicholson/databricks-terraform-audit@v0.1.0
         with:
           path: infra/
           fail-on: high

@@ -1,4 +1,4 @@
-# Databricks Platform Ops Agent
+# Databricks Terraform Audit
 
 ## What this project does
 
