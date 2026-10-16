@@ -47,7 +47,8 @@ def test_public_network_access(tf) -> None:
 
 def test_storage_network_rules_and_tls(tf) -> None:
     assert check_storage_network_rules(*tf(STORAGE_BAD)) != []
-    assert check_tls_version(*tf(STORAGE_BAD)) != []
+    assert [f.severity.value for f in check_tls_version(*tf(STORAGE_BAD))] == ["LOW"]
+    assert [f.severity.value for f in check_tls_version(*tf('resource "azurerm_storage_account" "x" { min_tls_version = "TLS1_0" }'))] == ["HIGH"]
     assert check_storage_network_rules(*tf(STORAGE_OK)) == []
     assert check_tls_version(*tf(STORAGE_OK)) == []
 

@@ -29,6 +29,28 @@ What it told me, in order of usefulness:
    Overwatch main workspace module, which creates a workspace with managed
    networking and no VNet injection.
 
+## Against the Security Reference Architecture
+
+The fairer test is [databricks/terraform-databricks-sra](https://github.com/databricks/terraform-databricks-sra),
+Databricks' own security-first reference deployment, run as one project over the
+whole `azure/tf` tree (51 files, 7 modules). Result: zero criticals, one high, three
+mediums, one low.
+
+- The high is real: the SRA defines no `databricks_cluster_policy`. It is a
+  networking and governance reference, so that is scope rather than oversight, but a
+  team forking it as their starting point would ship without cluster governance.
+- The three mediums are `prevent_destroy` on the catalog storage account, the hub
+  Key Vault and the workspace. Reasonable for a reference; I would want them on a
+  real deployment.
+- Everything structural passes: VNet injection, `no_public_ip`, Premium SKU,
+  metastore assignment, storage network rules, front-end public access tied to a
+  Private Link variable.
+
+The run also found the second provider-default bug in this tool: the TLS rule
+flagged the SRA's catalog storage account for not setting `min_tls_version`, and
+the provider has defaulted new accounts to `TLS1_2` for years. Now LOW advisory when
+unset, HIGH only when explicitly set lower. Raw output in `sra.json`.
+
 ## Against Checkov
 
 Checkov 3.3.29 run over the same 29 directories, `--framework terraform`, no

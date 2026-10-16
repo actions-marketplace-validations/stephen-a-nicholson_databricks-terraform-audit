@@ -1,0 +1,51 @@
+{
+  "target": "/home/claude/experiment/repos/terraform-databricks-sra/azure/tf",
+  "total": 5,
+  "findings": [
+    {
+      "severity": "HIGH",
+      "category": "Databricks",
+      "title": "No cluster policies defined",
+      "message": "A Databricks workspace exists but no databricks_cluster_policy is defined anywhere in the project. Without policies, users can create clusters with any configuration, which is how costs and environment drift get out of hand.",
+      "file": "/home/claude/experiment/repos/terraform-databricks-sra/azure/tf/modules/workspace/main.tf",
+      "resource": "",
+      "suggested_fix": "resource \"databricks_cluster_policy\" \"default\" {\n  name = \"Default policy\"\n  definition = jsonencode({\n    \"autotermination_minutes\": {\n      \"type\":  \"fixed\",\n      \"value\": 60\n    }\n  })\n}"
+    },
+    {
+      "severity": "MEDIUM",
+      "category": "Standards",
+      "title": "Stateful resource missing lifecycle protection",
+      "message": "Resource 'azurerm_storage_account.unity_catalog' is stateful but has no lifecycle { prevent_destroy = true }. An accidental terraform destroy could delete this resource and its data.",
+      "file": "/home/claude/experiment/repos/terraform-databricks-sra/azure/tf/modules/catalog/storage_account.tf",
+      "resource": "azurerm_storage_account.unity_catalog",
+      "suggested_fix": "lifecycle {\n  prevent_destroy = true\n}"
+    },
+    {
+      "severity": "MEDIUM",
+      "category": "Standards",
+      "title": "Stateful resource missing lifecycle protection",
+      "message": "Resource 'azurerm_key_vault.this' is stateful but has no lifecycle { prevent_destroy = true }. An accidental terraform destroy could delete this resource and its data.",
+      "file": "/home/claude/experiment/repos/terraform-databricks-sra/azure/tf/modules/hub/keyvault.tf",
+      "resource": "azurerm_key_vault.this",
+      "suggested_fix": "lifecycle {\n  prevent_destroy = true\n}"
+    },
+    {
+      "severity": "MEDIUM",
+      "category": "Standards",
+      "title": "Stateful resource missing lifecycle protection",
+      "message": "Resource 'azurerm_databricks_workspace.this' is stateful but has no lifecycle { prevent_destroy = true }. An accidental terraform destroy could delete this resource and its data.",
+      "file": "/home/claude/experiment/repos/terraform-databricks-sra/azure/tf/modules/workspace/main.tf",
+      "resource": "azurerm_databricks_workspace.this",
+      "suggested_fix": "lifecycle {\n  prevent_destroy = true\n}"
+    },
+    {
+      "severity": "LOW",
+      "category": "Security",
+      "title": "Storage account TLS version relies on provider default",
+      "message": "Storage account 'unity_catalog' does not set min_tls_version. The provider defaults new accounts to TLS1_2, so this is fine today; set it explicitly so the intent is visible in review.",
+      "file": "/home/claude/experiment/repos/terraform-databricks-sra/azure/tf/modules/catalog/storage_account.tf",
+      "resource": "azurerm_storage_account.unity_catalog",
+      "suggested_fix": "min_tls_version = \"TLS1_2\""
+    }
+  ]
+}

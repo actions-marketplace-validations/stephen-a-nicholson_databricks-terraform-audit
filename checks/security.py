@@ -85,28 +85,43 @@ def check_storage_network_rules(parsed: dict, filepath: Path) -> list[Finding]:
 
 
 def check_tls_version(parsed: dict, filepath: Path) -> list[Finding]:
-    """Flag storage accounts without minimum TLS 1.2."""
+    """Flag storage accounts that allow TLS older than 1.2.
+
+    The provider defaults new accounts to TLS1_2, so an unset value is only an
+    advisory: say it explicitly so the next reader does not have to know that.
+    Explicitly setting an older version is a HIGH.
+    """
     findings: list[Finding] = []
     for rtype, rname, config in iter_resources(parsed):
         if rtype != "azurerm_storage_account":
             continue
-        tls = config.get("min_tls_version", "")
-        if tls != "TLS1_2":
+        tls = config.get("min_tls_version")
+        if tls is None:
             findings.append(Finding(
-                severity=Severity.MEDIUM,
+                severity=Severity.LOW,
                 category=Category.SECURITY,
-                title="Storage account not enforcing TLS 1.2",
+                title="Storage account TLS version relies on provider default",
                 message=(
-                    f"Storage account '{rname}' does not enforce "
-                    f"TLS 1.2 as minimum version."
+                    f"Storage account '{rname}' does not set min_tls_version. The "
+                    f"provider defaults new accounts to TLS1_2, so this is fine today; "
+                    f"set it explicitly so the intent is visible in review."
                 ),
                 filepath=filepath,
                 resource_address=f"azurerm_storage_account.{rname}",
-                suggested_fix=(
-                    f'resource "azurerm_storage_account" "{rname}" {{\n'
-                    f'  min_tls_version = "TLS1_2"\n'
-                    f"}}"
+                suggested_fix='min_tls_version = "TLS1_2"',
+            ))
+        elif str(tls) != "TLS1_2":
+            findings.append(Finding(
+                severity=Severity.HIGH,
+                category=Category.SECURITY,
+                title="Storage account allows TLS older than 1.2",
+                message=(
+                    f"Storage account '{rname}' sets min_tls_version = {tls}. That is "
+                    f"a deliberate downgrade from the provider default of TLS1_2."
                 ),
+                filepath=filepath,
+                resource_address=f"azurerm_storage_account.{rname}",
+                suggested_fix='min_tls_version = "TLS1_2"',
             ))
     return findings
 
