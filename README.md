@@ -4,25 +4,7 @@ Audits Databricks Terraform for security, standards and platform misconfiguratio
 
 Point it at a directory of `.tf` files. It parses them properly (no regex), runs a fixed set of rules, and produces a severity-ranked report with a suggested fix for each finding. It runs locally in a couple of seconds, or as a GitHub Action on every pull request. No Terraform CLI, no cloud credentials, no API keys.
 
-```
-🔍 Auditing Terraform configs in examples/sample-terraform...
-
-  Scanning main.tf...
-
-⚠ Found 17 issue(s):
-
-  🔴 [CRITICAL] Databricks workspace without VNet injection — main.tf
-  🔴 [CRITICAL] No Unity Catalog metastore assignment — main.tf
-  🔴 [CRITICAL] Public network access enabled — main.tf
-  🟠 [HIGH] Broad role assignment at subscription scope — main.tf
-  🟠 [HIGH] No cluster policies defined — main.tf
-  🟠 [HIGH] Provider version not pinned — main.tf
-  🟠 [HIGH] Storage account missing network rules — main.tf
-  🟡 [MEDIUM] Cluster defined without policy — main.tf
-  ...
-
-📄 Report written to audit_report.md
-```
+![dbx-audit running on the adb-lakehouse module from Databricks' own examples](docs/terminal.png)
 
 ## Why this exists
 
