@@ -1,7 +1,7 @@
 [project]
 name = "databricks-platform-ops-agent"
 version = "0.1.0"
-description = "AI-powered audit agent for Databricks Terraform configurations"
+description = "Audits Databricks Terraform for security, standards and platform misconfigurations, and explains why each one matters"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -9,6 +9,21 @@ dependencies = [
     "python-hcl2>=4.0.0",
     "click>=8.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/stephen-a-nicholson/databricks-platform-ops-agent"
+Issues = "https://github.com/stephen-a-nicholson/databricks-platform-ops-agent/issues"
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
 
 [project.scripts]
 dbx-audit = "main:main"

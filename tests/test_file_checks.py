@@ -1,0 +1,111 @@
+"""Per-file checks: one passing and one failing case for each rule."""
+
+from checks.databricks import (
+    check_cluster_without_policy,
+    check_legacy_hive_metastore,
+    check_vnet_injection,
+    check_workspace_sku,
+)
+from checks.security import (
+    check_public_network_access,
+    check_service_principal_scope,
+    check_storage_network_rules,
+    check_tls_version,
+)
+from checks.standards import (
+    check_hardcoded_values,
+    check_lifecycle_protection,
+    check_provider_version,
+    check_required_tags,
+)
+
+STORAGE_OK = '''
+resource "azurerm_storage_account" "x" {
+  name            = "x"
+  min_tls_version = "TLS1_2"
+  network_rules {
+    default_action = "Deny"
+  }
+  lifecycle {
+    prevent_destroy = true
+  }
+  tags = {
+    Environment = "prod"
+    Owner       = "a"
+    CostCentre  = "b"
+    Project     = "c"
+  }
+}
+'''
+STORAGE_BAD = 'resource "azurerm_storage_account" "x" { name = "x" }'
+
+
+def test_public_network_access(tf) -> None:
+    assert check_public_network_access(*tf('resource "azurerm_databricks_workspace" "w" { public_network_access_enabled = true }')) != []
+    assert check_public_network_access(*tf('resource "azurerm_databricks_workspace" "w" { public_network_access_enabled = false }')) == []
+
+
+def test_storage_network_rules_and_tls(tf) -> None:
+    assert check_storage_network_rules(*tf(STORAGE_BAD)) != []
+    assert check_tls_version(*tf(STORAGE_BAD)) != []
+    assert check_storage_network_rules(*tf(STORAGE_OK)) == []
+    assert check_tls_version(*tf(STORAGE_OK)) == []
+
+
+def test_subscription_scope_role_assignment(tf) -> None:
+    bad = 'resource "azurerm_role_assignment" "r" { scope = "/subscriptions/abc" role_definition_name = "Owner" principal_id = "p" }'
+    ok = 'resource "azurerm_role_assignment" "r" { scope = azurerm_resource_group.main.id role_definition_name = "Contributor" principal_id = "p" }'
+    assert check_service_principal_scope(*tf(bad)) != []
+    assert check_service_principal_scope(*tf(ok)) == []
+
+
+def test_required_tags(tf) -> None:
+    assert check_required_tags(*tf(STORAGE_BAD)) != []
+    assert check_required_tags(*tf(STORAGE_OK)) == []
+    # A subnet has no tags argument in azurerm and must never be flagged.
+    assert check_required_tags(*tf('resource "azurerm_subnet" "s" { name = "s" }')) == []
+    # Tags passed as a variable cannot be inspected and must not be flagged.
+    assert check_required_tags(*tf('resource "azurerm_resource_group" "g" { name = "g" tags = var.tags }')) == []
+
+
+def test_provider_version(tf) -> None:
+    unpinned = 'terraform { required_providers { azurerm = { source = "hashicorp/azurerm" } } }'
+    pinned = 'terraform { required_providers { azurerm = { source = "hashicorp/azurerm" version = "~> 4.0" } } }'
+    assert check_provider_version(*tf(unpinned)) != []
+    assert check_provider_version(*tf(pinned)) == []
+    # No terraform block in this file is not a per-file problem.
+    assert check_provider_version(*tf(STORAGE_OK)) == []
+
+
+def test_lifecycle_protection(tf) -> None:
+    assert check_lifecycle_protection(*tf(STORAGE_BAD)) != []
+    assert check_lifecycle_protection(*tf(STORAGE_OK)) == []
+
+
+def test_hardcoded_uuid(tf) -> None:
+    assert check_hardcoded_values(*tf('provider "azurerm" { subscription_id = "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }')) != []
+    assert check_hardcoded_values(*tf('provider "azurerm" { subscription_id = var.subscription_id }')) == []
+
+
+def test_vnet_injection(tf) -> None:
+    none = 'resource "azurerm_databricks_workspace" "w" { name = "w" }'
+    no_scc = 'resource "azurerm_databricks_workspace" "w" { custom_parameters { virtual_network_id = "v" } }'
+    full = 'resource "azurerm_databricks_workspace" "w" { custom_parameters { virtual_network_id = "v" no_public_ip = true } }'
+    assert [f.severity.value for f in check_vnet_injection(*tf(none))] == ["CRITICAL"]
+    assert [f.severity.value for f in check_vnet_injection(*tf(no_scc))] == ["HIGH"]
+    assert check_vnet_injection(*tf(full)) == []
+
+
+def test_cluster_without_policy(tf) -> None:
+    assert check_cluster_without_policy(*tf('resource "databricks_cluster" "c" { cluster_name = "c" }')) != []
+    assert check_cluster_without_policy(*tf('resource "databricks_cluster" "c" { policy_id = "p" }')) == []
+
+
+def test_workspace_sku(tf) -> None:
+    assert check_workspace_sku(*tf('resource "azurerm_databricks_workspace" "w" { sku = "standard" }')) != []
+    assert check_workspace_sku(*tf('resource "azurerm_databricks_workspace" "w" { sku = "premium" }')) == []
+
+
+def test_legacy_hive_metastore(tf) -> None:
+    assert check_legacy_hive_metastore(*tf('resource "databricks_grants" "g" { catalog = "hive_metastore" }')) != []
+    assert check_legacy_hive_metastore(*tf('resource "databricks_grants" "g" { catalog = "main" }')) == []

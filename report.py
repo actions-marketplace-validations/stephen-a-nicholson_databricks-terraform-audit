@@ -1,7 +1,7 @@
 """Generate a Markdown audit report from findings."""
 
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from checks.models import Finding, Severity
@@ -9,7 +9,7 @@ from checks.models import Finding, Severity
 
 def generate_report(findings: list[Finding], target_dir: Path) -> str:
     """Generate a Markdown audit report from a list of findings."""
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     severity_counts = Counter(f.severity for f in findings)
 
     lines: list[str] = []
@@ -49,7 +49,11 @@ def generate_report(findings: list[Finding], target_dir: Path) -> str:
             lines.append(f"### {i}. {finding.title}")
             lines.append("")
             lines.append(f"**Severity**: {severity_badge}  ")
-            lines.append(f"**File**: `{finding.filepath.name}`  ")
+            try:
+                shown = finding.filepath.relative_to(target_dir)
+            except ValueError:
+                shown = finding.filepath
+            lines.append(f"**File**: `{shown}`  ")
             if finding.resource_address:
                 lines.append(f"**Resource**: `{finding.resource_address}`")
             lines.append("")
@@ -69,8 +73,11 @@ def generate_report(findings: list[Finding], target_dir: Path) -> str:
     return "\n".join(lines)
 
 
-def write_report(findings: list[Finding], target_dir: Path, output_path: Path) -> None:
+def write_report(
+    findings: list[Finding], target_dir: Path, output_path: Path, quiet: bool = False
+) -> None:
     """Write the audit report to a file."""
     report = generate_report(findings, target_dir)
     output_path.write_text(report)
-    print(f"\n📄 Report written to {output_path}")
+    if not quiet:
+        print(f"\n📄 Report written to {output_path}")

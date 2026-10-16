@@ -6,40 +6,9 @@ from checks.helpers import iter_resources
 from checks.models import Category, Finding, Severity
 
 
-def _has_resource_type(parsed: dict, target_type: str) -> bool:
-    """Check if a specific resource type exists anywhere in the parsed HCL."""
-    for rtype, _, _ in iter_resources(parsed):
-        if rtype == target_type:
-            return True
-    return False
-
-
-def check_unity_catalog(parsed: dict, filepath: Path) -> list[Finding]:
-    """Flag missing Unity Catalog configuration."""
+def check_legacy_hive_metastore(parsed: dict, filepath: Path) -> list[Finding]:
+    """Flag references to the legacy hive_metastore. Metastore assignment is a project-level check."""
     findings: list[Finding] = []
-
-    has_workspace = _has_resource_type(parsed, "azurerm_databricks_workspace")
-    has_metastore = _has_resource_type(parsed, "databricks_metastore_assignment")
-
-    if has_workspace and not has_metastore:
-        findings.append(Finding(
-            severity=Severity.CRITICAL,
-            category=Category.DATABRICKS,
-            title="No Unity Catalog metastore assignment",
-            message=(
-                "Databricks workspace defined without a "
-                "databricks_metastore_assignment resource. Without Unity Catalog, "
-                "the workspace uses legacy hive_metastore with no centralised "
-                "governance."
-            ),
-            filepath=filepath,
-            suggested_fix=(
-                'resource "databricks_metastore_assignment" "this" {\n'
-                "  workspace_id = azurerm_databricks_workspace.this.workspace_id\n"
-                "  metastore_id = databricks_metastore.this.id\n"
-                "}"
-            ),
-        ))
 
     content = filepath.read_text()
     if "hive_metastore" in content:
@@ -107,36 +76,9 @@ def check_vnet_injection(parsed: dict, filepath: Path) -> list[Finding]:
     return findings
 
 
-def check_cluster_policies(parsed: dict, filepath: Path) -> list[Finding]:
-    """Flag missing cluster policies."""
+def check_cluster_without_policy(parsed: dict, filepath: Path) -> list[Finding]:
+    """Flag clusters with no policy_id. Whether any policy exists at all is a project-level check."""
     findings: list[Finding] = []
-
-    has_workspace = _has_resource_type(parsed, "azurerm_databricks_workspace")
-    has_policies = _has_resource_type(parsed, "databricks_cluster_policy")
-
-    if has_workspace and not has_policies:
-        findings.append(Finding(
-            severity=Severity.HIGH,
-            category=Category.DATABRICKS,
-            title="No cluster policies defined",
-            message=(
-                "Databricks workspace exists but no cluster policies are defined. "
-                "Without policies, users can create clusters with any configuration, "
-                "leading to uncontrolled costs and inconsistent environments."
-            ),
-            filepath=filepath,
-            suggested_fix=(
-                'resource "databricks_cluster_policy" "default" {\n'
-                '  name = "Default policy"\n'
-                "  definition = jsonencode({\n"
-                '    "autotermination_minutes": {\n'
-                '      "type":  "fixed",\n'
-                '      "value": 60\n'
-                "    }\n"
-                "  })\n"
-                "}"
-            ),
-        ))
 
     for rtype, rname, config in iter_resources(parsed):
         if rtype != "databricks_cluster":
@@ -184,9 +126,9 @@ def check_workspace_sku(parsed: dict, filepath: Path) -> list[Finding]:
 def run_all_checks(parsed: dict, filepath: Path) -> list[Finding]:
     """Run all Databricks checks against a parsed HCL file."""
     checks = [
-        check_unity_catalog,
+        check_legacy_hive_metastore,
         check_vnet_injection,
-        check_cluster_policies,
+        check_cluster_without_policy,
         check_workspace_sku,
     ]
     findings: list[Finding] = []

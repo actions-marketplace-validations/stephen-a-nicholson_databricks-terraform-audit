@@ -1,0 +1,49 @@
+name: "Databricks Terraform Audit"
+description: "Audit Databricks Terraform for security, standards and platform misconfigurations. No cloud credentials needed."
+author: "Stephen Nicholson"
+branding:
+  icon: "shield"
+  color: "orange"
+
+inputs:
+  path:
+    description: "Directory containing the Terraform to audit."
+    required: true
+    default: "."
+  fail-on:
+    description: "Fail the job if any finding is at or above this severity: critical, high, medium, low or none."
+    required: false
+    default: "high"
+  report:
+    description: "Path to write the Markdown report to. Uploaded as a job artifact."
+    required: false
+    default: "audit_report.md"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+
+    - name: Install the audit tool
+      shell: bash
+      run: uv tool install "git+https://github.com/stephen-a-nicholson/databricks-platform-ops-agent@${{ github.action_ref || 'main' }}"
+
+    - name: Run audit
+      shell: bash
+      run: |
+        dbx-audit "${{ inputs.path }}" \
+          --output "${{ inputs.report }}" \
+          --fail-on "${{ inputs['fail-on'] }}" | tee audit_output.txt
+
+    - name: Add report to job summary
+      if: always()
+      shell: bash
+      run: cat "${{ inputs.report }}" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: databricks-terraform-audit
+        path: ${{ inputs.report }}

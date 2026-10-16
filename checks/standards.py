@@ -8,13 +8,13 @@ from checks.models import Category, Finding, Severity
 
 REQUIRED_TAGS = {"Environment", "Owner", "CostCentre", "Project"}
 
+# azurerm_subnet is deliberately absent: subnets do not support tags.
 TAGGABLE_RESOURCES = {
     "azurerm_resource_group",
     "azurerm_storage_account",
     "azurerm_databricks_workspace",
     "azurerm_key_vault",
     "azurerm_virtual_network",
-    "azurerm_subnet",
     "azurerm_network_security_group",
     "azurerm_log_analytics_workspace",
 }
@@ -79,7 +79,7 @@ def check_provider_version(parsed: dict, filepath: Path) -> list[Finding]:
     has_version_constraint = False
     for block in terraform_blocks:
         for provider_block in block.get("required_providers", []):
-            for _provider_name, provider_config in provider_block.items():
+            for provider_config in provider_block.values():
                 if isinstance(provider_config, dict) and provider_config.get("version"):
                     has_version_constraint = True
 
@@ -103,25 +103,6 @@ def check_provider_version(parsed: dict, filepath: Path) -> list[Finding]:
             ),
         ))
 
-    if not terraform_blocks:
-        findings.append(Finding(
-            severity=Severity.HIGH,
-            category=Category.STANDARDS,
-            title="Missing terraform block",
-            message="No terraform block found. Add required_version and required_providers.",
-            filepath=filepath,
-            suggested_fix=(
-                "terraform {\n"
-                '  required_version = ">= 1.5.0"\n\n'
-                "  required_providers {\n"
-                "    azurerm = {\n"
-                '      source  = "hashicorp/azurerm"\n'
-                '      version = "~> 4.0"\n'
-                "    }\n"
-                "  }\n"
-                "}"
-            ),
-        ))
     return findings
 
 

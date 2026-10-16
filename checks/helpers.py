@@ -1,7 +1,6 @@
 """Helpers for iterating python-hcl2 parsed structures."""
 
 from collections.abc import Iterator
-from pathlib import Path
 
 
 def iter_resources(parsed: dict) -> Iterator[tuple[str, str, dict]]:

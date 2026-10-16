@@ -2,4 +2,4 @@
 
 from checks.models import Category, Finding, Severity
 
-__all__ = ["Finding", "Severity", "Category"]
+__all__ = ["Category", "Finding", "Severity"]

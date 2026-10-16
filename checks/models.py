@@ -1,6 +1,6 @@
 """Data models for audit findings."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
@@ -41,3 +41,15 @@ class Finding:
 
     def __str__(self) -> str:
         return f"[{self.severity.value}] {self.title} — {self.filepath}"
+
+    def to_dict(self) -> dict:
+        """Serialisable form, used for JSON output and CI integrations."""
+        return {
+            "severity": self.severity.value,
+            "category": self.category.value,
+            "title": self.title,
+            "message": self.message,
+            "file": str(self.filepath),
+            "resource": self.resource_address,
+            "suggested_fix": self.suggested_fix,
+        }

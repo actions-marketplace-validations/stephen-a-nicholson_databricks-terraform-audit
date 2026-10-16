@@ -1,99 +1,132 @@
 # databricks-platform-ops-agent
 
-An AI-powered audit agent that checks your Databricks Terraform configurations for security issues, standards violations, and Databricks-specific misconfigurations.
+Audits Databricks Terraform for security, standards and platform misconfigurations, and explains why each one matters.
 
-## What it does
-
-Point it at a directory of `.tf` files and it runs **three specialised check modules** in parallel:
-
-| Module | What it checks |
-|--------|---------------|
-| **Security** | Public network access, missing private endpoints, storage network rules, overly permissive RBAC, service principal scope |
-| **Standards** | Required tags, naming conventions, provider version pinning, lifecycle protection, hardcoded values |
-| **Databricks** | Unity Catalog configuration, VNet injection, cluster policies, workspace SKU, secure cluster connectivity |
-
-Outputs a severity-ranked **Markdown audit report** with explanations and suggested Terraform fixes.
-
-## AI agent layer
-
-The deterministic Python checks catch known patterns. The three **Claude Code subagents** (in `.claude/agents/`) add a reasoning layer on top:
-
-- They can explain *why* a configuration is risky
-- They suggest context-aware fixes based on your specific setup
-- They understand trade-offs (e.g., security vs developer experience)
-
-To use the AI layer, run the audit from within [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview) and the subagents will be available automatically.
-
-## Quick start
-
-```bash
-# Clone the repo
-git clone https://github.com/YOUR_USERNAME/databricks-platform-ops-agent.git
-cd databricks-platform-ops-agent
-
-# Install dependencies
-uv sync
-
-# Run against the sample Terraform (ships with deliberate issues)
-uv run python main.py ./examples/sample-terraform/
-
-# Run against your own Terraform
-uv run python main.py /path/to/your/terraform/
-```
-
-## Example output
+Point it at a directory of `.tf` files. It parses them properly (no regex), runs a fixed set of rules, and produces a severity-ranked report with a suggested fix for each finding. It runs locally in a couple of seconds, or as a GitHub Action on every pull request. No Terraform CLI, no cloud credentials, no API keys.
 
 ```
-🔍 Auditing Terraform configs in ./examples/sample-terraform/...
+🔍 Auditing Terraform configs in examples/sample-terraform...
 
   Scanning main.tf...
 
-⚠ Found 10 issue(s):
+⚠ Found 17 issue(s):
 
-  🔴 [CRITICAL] Public network access enabled — main.tf
-  🔴 [CRITICAL] No Unity Catalog metastore assignment — main.tf
   🔴 [CRITICAL] Databricks workspace without VNet injection — main.tf
-  🟠 [HIGH] Storage account missing network rules — main.tf
+  🔴 [CRITICAL] No Unity Catalog metastore assignment — main.tf
+  🔴 [CRITICAL] Public network access enabled — main.tf
   🟠 [HIGH] Broad role assignment at subscription scope — main.tf
   🟠 [HIGH] No cluster policies defined — main.tf
-  🟡 [MEDIUM] Missing some required tags — main.tf
-  🟡 [MEDIUM] Workspace using Standard SKU — main.tf
-  🟡 [MEDIUM] Hardcoded UUID detected — main.tf
+  🟠 [HIGH] Provider version not pinned — main.tf
+  🟠 [HIGH] Storage account missing network rules — main.tf
   🟡 [MEDIUM] Cluster defined without policy — main.tf
+  ...
 
 📄 Report written to audit_report.md
 ```
 
-## Using with Claude Code subagents
+## Why this exists
 
-The real power comes from running this inside Claude Code. The three subagents in `.claude/agents/` are:
+A Databricks workspace deployed through the portal, or by an AI agent, or by a colleague who left, can run fine for months and still be unable to answer the question a security reviewer will eventually ask: why is it configured this way? Most of the costly mistakes on Azure Databricks (managed networking instead of VNet injection, a workspace on the legacy Hive metastore, Contributor at subscription scope) are invisible until someone asks, and some of them can only be fixed by rebuilding the workspace.
 
-- **security-checker** — deep security analysis with read-only access
-- **standards-checker** — organisational standards and code quality audit
-- **databricks-checker** — Databricks platform best practices review
+This tool asks the question first. Every rule in [`docs/RULES.md`](docs/RULES.md) says what it checks and why it matters, so the output is something you can hand to a reviewer, not just a list of red icons.
 
-Each subagent runs in its own context window with `Read`, `Grep`, and `Glob` tools only (no write access). They can reason about your specific configuration and suggest tailored fixes.
+## Quick start
 
 ```bash
-# Inside Claude Code, just ask:
-# "Run the security checker against my terraform directory"
-# "Have the databricks checker review my workspace config"
-# "Audit this entire terraform project"
+git clone https://github.com/stephen-a-nicholson/databricks-platform-ops-agent.git
+cd databricks-platform-ops-agent
+uv sync
+
+# Against the shipped example (deliberately broken)
+uv run python main.py examples/sample-terraform/
+
+# Against your own Terraform
+uv run python main.py /path/to/your/terraform/
 ```
 
-## Adding new checks
+Or install it as a tool:
 
-1. Add a check function in the appropriate `checks/*.py` module
-2. Function signature: `def check_something(parsed: dict, filepath: Path) -> list[Finding]`
-3. Register it in the module's `run_all_checks()` function
-4. The orchestrator picks it up automatically
+```bash
+uv tool install git+https://github.com/stephen-a-nicholson/databricks-platform-ops-agent
+dbx-audit /path/to/your/terraform/
+```
 
-## Requirements
+### Options
 
-- Python 3.11+
-- [uv](https://docs.astral.sh/uv/) — package manager (`pip install uv` or see uv docs)
-- No Terraform CLI, no cloud credentials, no API keys
+```
+dbx-audit TARGET_DIR [OPTIONS]
 
-## License
+  -o, --output PATH          Where to write the report (default: audit_report.md). Use - for stdout.
+  -f, --format [markdown|json]  JSON is for CI and other tooling.
+  --fail-on [critical|high|medium|low|none]
+                             Exit 1 if any finding is at or above this severity (default: none).
+  --no-recursive             Only scan TARGET_DIR itself. Subdirectories are scanned by default;
+                             .terraform/ is always skipped.
+  -q, --quiet                No progress output.
+```
 
-MIT
+Subdirectories are scanned as one project, so a check like "is there a metastore assignment anywhere" looks across `workspace.tf`, `unity_catalog.tf` and the module under `modules/`, rather than flagging each file for what lives in the one next to it.
+
+## In a pull request
+
+```yaml
+# .github/workflows/terraform-audit.yml
+name: Terraform audit
+on: [pull_request]
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: stephen-a-nicholson/databricks-platform-ops-agent@v0.1.0
+        with:
+          path: infra/
+          fail-on: high
+```
+
+The job fails on any CRITICAL or HIGH finding, the full report goes into the job summary, and it's uploaded as an artifact. Set `fail-on: none` to run it as advisory only.
+
+## What it checks
+
+Fifteen rules across three areas. Each one is documented in [`docs/RULES.md`](docs/RULES.md) with the reasoning.
+
+| Area | Examples |
+|---|---|
+| **Security** | Public network access, storage network rules, TLS version, role assignments at subscription scope |
+| **Standards** | Required tags, provider pinning, `terraform` block, `prevent_destroy` on stateful resources, hardcoded IDs |
+| **Databricks** | VNet injection, secure cluster connectivity, Unity Catalog metastore assignment, legacy Hive metastore, cluster policies, workspace SKU |
+
+The rules encode the defaults I've converged on across client platform builds. They won't all fit every organisation; fork the repo and edit the constants at the top of each `checks/*.py` module, or open an issue if you think a default is wrong.
+
+## The AI layer
+
+The Python checks are deterministic and catch known patterns. The three Claude Code subagents in `.claude/agents/` sit on top for the questions a fixed rule can't answer:
+
+- **security-checker**, **standards-checker**, **databricks-checker**: each has read-only access (`Read`, `Grep`, `Glob`) and a brief describing what good looks like in its area.
+- They explain *why* a specific configuration is risky in the context of the rest of the project, and suggest fixes that fit how the code is already structured rather than a generic snippet.
+- They also look for things the deterministic rules don't cover yet: NSG rules on the Databricks subnets, diagnostic settings, `databricks_workspace_conf` defaults, PAT tokens left enabled.
+
+Open the repo in [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview) and ask:
+
+```
+Run the databricks checker against ./infra and explain the two most important findings
+```
+
+The pattern is the point: the tool drafts, a reviewer (human or agent) has to be able to explain every line, and the explanations are the deliverable. The code is just the evidence.
+
+## Development
+
+```bash
+uv sync --extra dev
+uv run pytest -q         # 24 tests, including the two shipped examples
+uv run ruff check .
+```
+
+`examples/clean-terraform/` is a small multi-file platform that must produce zero findings. `examples/sample-terraform/` is a single file that must keep its three criticals. Both are asserted in CI, so a rule change that introduces a false positive fails the build.
+
+To add a rule, see the bottom of [`docs/RULES.md`](docs/RULES.md).
+
+## Licence
+
+MIT.
