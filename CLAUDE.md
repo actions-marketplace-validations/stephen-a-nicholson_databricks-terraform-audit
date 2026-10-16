@@ -35,6 +35,9 @@ Markdown audit report with findings + suggested fixes
 - **Per-file vs project checks**: A rule that asks "does a resource of type X exist" must be a project check in `checks/project.py`, because X usually lives in a different file from the one that needs it. Per-file checks only inspect the resource in front of them.
 - **Recursive by default**: `.tf` files in subdirectories are part of the same project. `.terraform/` is always skipped.
 - **Examples are tests**: `examples/clean-terraform/` must produce zero findings and `examples/sample-terraform/` must keep its three criticals. CI asserts both.
+- **Rules live in the registry**: `checks/registry.py` lists every rule with an id (S/T/D/P/H prefix), a profile and a scope. The orchestrator runs what `rules_for(profile)` returns. Adding a rule means a function, a registry entry, tests, and a row in `docs/RULES.md`.
+- **Profiles are cumulative**: baseline, then hardened. `.dbx-audit.toml` (see `config.py`) selects the profile, overrides required tags, and disables rules, each with a mandatory reason.
+- **Expressions are not findings**: a value like `${var.x}` cannot be evaluated statically. Hardened rules treat it as configured and do not flag it.
 - **No Terraform CLI dependency**: This tool works on `.tf` source files only. It does not require `terraform init`, `terraform plan`, or any provider credentials.
 
 ## Tech stack
@@ -77,6 +80,6 @@ uv run ruff check .
 To add a new check:
 1. Decide whether it is per-file or project-level (see above)
 2. Per-file: add `def check_something(parsed: dict, filepath: Path) -> list[Finding]` to the right `checks/*.py` module. Project: add `def check_something(project: Project) -> list[Finding]` to `checks/project.py`
-3. Register it in that module's `run_all_checks()`
+3. Add a `Rule(...)` entry to `checks/registry.py` with the next id for its prefix
 4. Add a passing and a failing case to `tests/test_file_checks.py` or `tests/test_project_checks.py`
 5. Add a row to `docs/RULES.md` saying what it checks and why

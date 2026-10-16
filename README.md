@@ -49,6 +49,24 @@ dbx-audit TARGET_DIR [OPTIONS]
 
 Subdirectories are scanned as one project, so a check like "is there a metastore assignment anywhere" looks across `workspace.tf`, `unity_catalog.tf` and the module under `modules/`, rather than flagging each file for what lives in the one next to it.
 
+## Profiles
+
+Rules are grouped into cumulative profiles, because a HIGH that matters to a bank is noise to a startup with open egress.
+
+- **baseline** (default): VNet injection, Unity Catalog, cluster policies, SKU, storage network rules, provider pinning, `prevent_destroy`, tags. Every production workspace.
+- **hardened**: baseline plus back-end and front-end Private Link, storage private endpoints, customer-managed keys, serverless NCC, private DNS, egress control. What the [Databricks Security Reference Architecture](https://github.com/databricks/terraform-databricks-sra) implements; its `azure/tf` tree passes all seven.
+
+Pick one with `--profile hardened` or a `.dbx-audit.toml` in the repo, which can also override required tags and switch individual rules off with a reason:
+
+```toml
+profile       = "hardened"
+required_tags = ["Environment", "Owner", "CostCentre"]
+
+[rules.H004]
+enabled = false
+reason  = "CMK is provisioned by the landing zone, not this repository"
+```
+
 ## In a pull request
 
 ```yaml
@@ -75,13 +93,14 @@ Run them too. They cover general Azure and storage hardening with thousands of p
 
 ## What it checks
 
-Fifteen rules across three areas. Each one is documented in [`docs/RULES.md`](docs/RULES.md) with the reasoning.
+Fifteen baseline rules across three areas, plus seven in the hardened profile. Each one is documented in [`docs/RULES.md`](docs/RULES.md) with the reasoning.
 
 | Area | Examples |
 |---|---|
 | **Security** | Public network access, storage network rules, TLS version, role assignments at subscription scope |
 | **Standards** | Required tags, provider pinning, `terraform` block, `prevent_destroy` on stateful resources, hardcoded IDs |
 | **Databricks** | VNet injection, secure cluster connectivity, Unity Catalog metastore assignment, legacy Hive metastore, cluster policies, workspace SKU |
+| **Hardened** | Back-end and front-end Private Link, storage private endpoints, customer-managed keys, serverless NCC, private DNS zone, egress control |
 
 The rules encode the defaults I've converged on across client platform builds. They won't all fit every organisation; fork the repo and edit the constants at the top of each `checks/*.py` module, or open an issue if you think a default is wrong.
 
@@ -105,11 +124,11 @@ The pattern is the point: the tool drafts, a reviewer (human or agent) has to be
 
 ```bash
 uv sync --extra dev
-uv run pytest -q         # 26 tests, including the two shipped examples
+uv run pytest -q         # 31 tests, including the two shipped examples
 uv run ruff check .
 ```
 
-`examples/clean-terraform/` is a small multi-file platform that must produce zero findings. `examples/sample-terraform/` is a single file that must keep its three criticals. Both are asserted in CI, so a rule change that introduces a false positive fails the build.
+`examples/clean-terraform/` is a small multi-file platform that must produce zero baseline findings and fail hardened in six known places. `examples/hardened-terraform/` adds Private Link, CMK, NCC, DNS and egress and must pass hardened clean. `examples/sample-terraform/` is a single file that must keep its three criticals. Both are asserted in CI, so a rule change that introduces a false positive fails the build.
 
 To add a rule, see the bottom of [`docs/RULES.md`](docs/RULES.md).
 

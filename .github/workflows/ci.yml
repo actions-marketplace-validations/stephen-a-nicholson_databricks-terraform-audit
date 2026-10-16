@@ -24,6 +24,8 @@ jobs:
       - run: uv sync
       - name: Clean example must pass
         run: uv run python main.py examples/clean-terraform --fail-on low -q -o -
+      - name: Hardened example must pass hardened
+        run: uv run python main.py examples/hardened-terraform --profile hardened --fail-on low -q -o -
       - name: Sample example must fail
         run: |
           if uv run python main.py examples/sample-terraform --fail-on high -q -o -; then

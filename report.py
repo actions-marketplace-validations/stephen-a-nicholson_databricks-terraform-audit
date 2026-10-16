@@ -46,7 +46,7 @@ def generate_report(findings: list[Finding], target_dir: Path) -> str:
 
         for i, finding in enumerate(cat_findings, 1):
             severity_badge = f"**{finding.severity.value}**"
-            lines.append(f"### {i}. {finding.title}")
+            lines.append(f"### {i}. {finding.title}" + (f" ({finding.rule_id})" if finding.rule_id else ""))
             lines.append("")
             lines.append(f"**Severity**: {severity_badge}  ")
             try:

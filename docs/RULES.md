@@ -45,3 +45,27 @@ A per-file rule is a function in `checks/security.py`, `checks/standards.py` or 
 A project rule is a function in `checks/project.py` taking a `Project` and returning `list[Finding]`, registered the same way. Use a project rule whenever the question is "does X exist anywhere", since the answer is usually in a different file.
 
 Every rule gets a passing and a failing case in `tests/test_file_checks.py` or `tests/test_project_checks.py`, and a row in this file saying why it exists. The examples under `examples/` are also tests: `clean-terraform` must stay finding-free and `sample-terraform` must keep its three criticals.
+
+## Hardened profile
+
+Opt in with `profile = "hardened"` in `.dbx-audit.toml` or `--profile hardened`. These are the controls the [Databricks Security Reference Architecture](https://github.com/databricks/terraform-databricks-sra) implements; the SRA's `azure/tf` tree passes all seven. All are project-level because the endpoint, the DNS zone and the firewall are almost never in the same file as the workspace. A value set from a variable (`customer_managed_key_enabled = var.is_kms_enabled`) is treated as configured and not flagged; only a literal `false` or an absence is.
+
+| ID | Rule | Severity | What it checks | Why |
+|---|---|---|---|---|
+| H001 | Back-end Private Link | HIGH | `network_security_group_rules_required = "NoAzureDatabricksRules"` on the workspace and a private endpoint with subresource `databricks_ui_api` | Without it, cluster-to-control-plane traffic leaves over the public endpoint, whatever the NSGs say. |
+| H002 | Front-end Private Link | HIGH | A `browser_authentication` private endpoint and `public_network_access_enabled` not true or unset | Users reach the workspace UI from the internet. This is the one a bank's network team asks about first. |
+| H003 | Storage private endpoints | HIGH | Every `azurerm_storage_account` has a private endpoint with subresource `dfs` pointing at it | Otherwise the lakehouse reads and writes over the public storage endpoint, and the storage firewall is doing all the work. |
+| H004 | Customer-managed keys | MEDIUM | `customer_managed_key_enabled` and `managed_services_cmk_key_vault_key_id` both set | Notebooks, secrets and DBFS root under your key rather than Microsoft's. A compliance requirement more than a technical one, hence MEDIUM. |
+| H005 | Serverless NCC | MEDIUM | A `databricks_mws_network_connectivity_config` or `databricks_mws_ncc_binding` exists | Serverless compute has no egress identity for your firewall rules until it is bound to an NCC. |
+| H006 | Private DNS zone | MEDIUM | `privatelink.azuredatabricks.net` declared or linked via `private_dns_zone_group` when Databricks private endpoints exist | A private endpoint without DNS resolves to the public address and is silently bypassed. |
+| H007 | Egress control | MEDIUM | An `azurerm_firewall` or `azurerm_route_table` in the project | Clusters can reach any internet destination. Closing that is the point of a hardened deployment. |
+
+### Disabling a rule
+
+```toml
+[rules.H004]
+enabled = false
+reason  = "CMK is provisioned by the landing zone, not this repository"
+```
+
+A disabled rule with no `reason` is a config error. The reason prints at the top of every run.

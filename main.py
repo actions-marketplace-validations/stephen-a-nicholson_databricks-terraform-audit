@@ -7,6 +7,8 @@ from pathlib import Path
 import click
 
 from checks.models import Finding, Severity
+from checks.registry import PROFILES
+from config import ConfigError, load_config
 from orchestrator import run_audit
 from report import generate_report, write_report
 
@@ -50,6 +52,18 @@ def _exceeds_threshold(findings: list[Finding], fail_on: str) -> bool:
     is_flag=True,
     help="Only scan .tf files in TARGET_DIR itself, not subdirectories.",
 )
+@click.option(
+    "--profile", "-p",
+    type=click.Choice(PROFILES),
+    default=None,
+    help="Rule profile. Overrides the profile in .dbx-audit.toml. Default: baseline.",
+)
+@click.option(
+    "--config", "-c", "config_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help="Config file. Default: .dbx-audit.toml in TARGET_DIR if present.",
+)
 @click.option("--quiet", "-q", is_flag=True, help="Suppress per-file progress output.")
 def main(
     target_dir: Path,
@@ -57,6 +71,8 @@ def main(
     fmt: str,
     fail_on: str,
     no_recursive: bool,
+    profile: str | None,
+    config_path: Path | None,
     quiet: bool,
 ) -> None:
     """Audit Databricks Terraform configurations.
@@ -64,17 +80,27 @@ def main(
     TARGET_DIR is the directory containing .tf files to audit. Subdirectories
     are included by default; the .terraform provider cache is always skipped.
     """
-    if not quiet:
-        click.echo(f"\n🔍 Auditing Terraform configs in {target_dir}...\n")
+    try:
+        config = load_config(target_dir, config_path)
+    except ConfigError as e:
+        raise click.ClickException(str(e)) from e
+    if profile:
+        config.profile = profile
 
-    findings = run_audit(target_dir, recursive=not no_recursive, quiet=quiet)
+    if not quiet:
+        src = f" (config: {config.source})" if config.source else ""
+        click.echo(f"\n🔍 Auditing Terraform configs in {target_dir} [profile: {config.profile}]{src}\n")
+        for rule_id, reason in config.disabled.items():
+            click.echo(f"  skipping {rule_id}: {reason}")
+
+    findings = run_audit(target_dir, recursive=not no_recursive, quiet=quiet, config=config)
 
     if not quiet:
         if findings:
             click.echo(f"\n⚠ Found {len(findings)} issue(s):\n")
             for f in findings:
                 rel = f.filepath.relative_to(target_dir)
-                click.echo(f"  {EMOJI[f.severity.value]} [{f.severity.value}] {f.title} — {rel}")
+                click.echo(f"  {EMOJI[f.severity.value]} [{f.severity.value}] {f.rule_id} {f.title} — {rel}")
         else:
             click.echo("\n✅ No issues found!")
 
@@ -82,6 +108,7 @@ def main(
         payload = json.dumps(
             {
                 "target": str(target_dir),
+                "profile": config.profile,
                 "total": len(findings),
                 "findings": [f.to_dict() for f in findings],
             },

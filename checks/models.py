@@ -38,6 +38,7 @@ class Finding:
     filepath: Path
     suggested_fix: str = ""
     resource_address: str = ""
+    rule_id: str = ""
 
     def __str__(self) -> str:
         return f"[{self.severity.value}] {self.title} — {self.filepath}"
@@ -45,6 +46,7 @@ class Finding:
     def to_dict(self) -> dict:
         """Serialisable form, used for JSON output and CI integrations."""
         return {
+            "rule": self.rule_id,
             "severity": self.severity.value,
             "category": self.category.value,
             "title": self.title,

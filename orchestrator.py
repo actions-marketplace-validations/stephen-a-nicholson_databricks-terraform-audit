@@ -1,15 +1,14 @@
-"""Orchestrator that dispatches checks across all modules."""
+"""Orchestrator: discover files, parse them, run the active rules, sort the findings."""
 
 from pathlib import Path
 
 import hcl2
 
-from checks.databricks import run_all_checks as run_databricks_checks
+from checks import standards
 from checks.models import Finding
 from checks.project import Project
-from checks.project import run_all_checks as run_project_checks
-from checks.security import run_all_checks as run_security_checks
-from checks.standards import run_all_checks as run_standards_checks
+from checks.registry import Rule, rules_for
+from config import Config
 
 # Directories that never contain user-authored Terraform worth auditing.
 SKIP_DIRS = {".terraform", ".git", "node_modules", ".venv"}
@@ -41,8 +40,27 @@ def discover_tf_files(directory: Path, recursive: bool = True) -> list[Path]:
     return tf_files
 
 
-def run_audit(directory: Path, recursive: bool = True, quiet: bool = False) -> list[Finding]:
-    """Run all checks against every .tf file under a directory, sorted by severity."""
+def _tag(findings: list[Finding], rule: Rule) -> list[Finding]:
+    for f in findings:
+        f.rule_id = rule.id
+    return findings
+
+
+def run_audit(
+    directory: Path,
+    recursive: bool = True,
+    quiet: bool = False,
+    config: Config | None = None,
+) -> list[Finding]:
+    """Run the rules active under the config's profile against every .tf file."""
+    config = config or Config()
+    if config.required_tags is not None:
+        standards.REQUIRED_TAGS = set(config.required_tags)
+
+    rules = rules_for(config.profile, set(config.disabled))
+    file_rules = [r for r in rules if r.scope == "file"]
+    project_rules = [r for r in rules if r.scope == "project"]
+
     tf_files = discover_tf_files(directory, recursive=recursive)
     project = Project(root=directory)
     all_findings: list[Finding] = []
@@ -54,13 +72,11 @@ def run_audit(directory: Path, recursive: bool = True, quiet: bool = False) -> l
         if parsed is None:
             continue
         project.files[filepath] = parsed
+        for rule in file_rules:
+            all_findings.extend(_tag(rule.fn(parsed, filepath), rule))
 
-        all_findings.extend(run_security_checks(parsed, filepath))
-        all_findings.extend(run_standards_checks(parsed, filepath))
-        all_findings.extend(run_databricks_checks(parsed, filepath))
-
-    # Checks that only make sense once every file has been read.
-    all_findings.extend(run_project_checks(project))
+    for rule in project_rules:
+        all_findings.extend(_tag(rule.fn(project), rule))
 
     all_findings.sort(key=lambda f: (f.severity.sort_order, str(f.filepath), f.title))
     return all_findings
