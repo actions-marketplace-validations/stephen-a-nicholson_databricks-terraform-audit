@@ -5,6 +5,7 @@ from pathlib import Path
 import hcl2
 
 from checks import standards
+from checks.helpers import normalise
 from checks.models import Finding
 from checks.project import Project
 from checks.registry import Rule, rules_for
@@ -18,7 +19,7 @@ def parse_tf_file(filepath: Path) -> dict | None:
     """Parse a single .tf file into a Python dict. Returns None if it cannot be parsed."""
     try:
         with open(filepath) as f:
-            return hcl2.load(f)
+            return normalise(hcl2.load(f))
     except Exception as e:  # noqa: BLE001 - python-hcl2 raises a mix of lark and value errors
         print(f"  ⚠ Could not parse {filepath}: {e}")
         return None

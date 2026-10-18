@@ -29,7 +29,7 @@ Markdown audit report with findings + suggested fixes
 
 ## Key design decisions
 
-- **HCL parsing**: Use `python-hcl2` to parse `.tf` files into Python dicts. Never use regex for Terraform parsing.
+- **HCL parsing**: Use `python-hcl2` to parse `.tf` files into Python dicts. Never use regex for Terraform parsing. Every parse goes through `checks.helpers.normalise()`, because python-hcl2 8.x keeps quote characters on labels and strings and the rules match on bare names. The dependency is pinned `<8` as well; `tests/test_hcl2_compat.py` feeds the 8.x shape in directly so the normaliser is tested whichever version is installed.
 - **Finding model**: Every check returns a list of `Finding` dataclasses (see `checks/models.py`) with severity, message, file path, and suggested fix.
 - **Subagents**: The `.claude/agents/` directory contains three read-only subagents. These add an AI reasoning layer on top of the deterministic Python checks — they can explain *why* something is a problem and suggest context-aware fixes.
 - **Per-file vs project checks**: A rule that asks "does a resource of type X exist" must be a project check in `checks/project.py`, because X usually lives in a different file from the one that needs it. Per-file checks only inspect the resource in front of them.

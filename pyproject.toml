@@ -1,12 +1,12 @@
 [project]
 name = "databricks-terraform-audit"
-version = "0.1.0"
+version = "0.2.0"
 description = "Audits Databricks Terraform for security, standards and platform misconfigurations, and explains why each one matters"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = [
-    "python-hcl2>=4.0.0",
+    "python-hcl2>=4.0.0,<8",
     "click>=8.0.0",
 ]
 

@@ -5,6 +5,8 @@ from pathlib import Path
 import hcl2
 import pytest
 
+from checks.helpers import normalise
+
 ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES = ROOT / "examples"
 
@@ -14,7 +16,7 @@ def parse(text: str, tmp_path: Path, name: str = "main.tf") -> tuple[dict, Path]
     path = tmp_path / name
     path.write_text(text)
     with open(path) as f:
-        return hcl2.load(f), path
+        return normalise(hcl2.load(f)), path
 
 
 @pytest.fixture
