@@ -54,10 +54,20 @@ def check_public_network_access(parsed: dict, filepath: Path) -> list[Finding]:
 
 
 def check_storage_network_rules(parsed: dict, filepath: Path) -> list[Finding]:
-    """Flag storage accounts without network rules."""
+    """Flag storage accounts without network rules, inline or as a separate resource.
+
+    azurerm supports both an inline ``network_rules`` block and a standalone
+    ``azurerm_storage_account_network_rules`` resource. Either satisfies this.
+    """
     findings: list[Finding] = []
+    covered = set()
+    for rtype, _, config in iter_resources(parsed):
+        if rtype == "azurerm_storage_account_network_rules":
+            covered.add(str(config.get("storage_account_id", "")))
     for rtype, rname, config in iter_resources(parsed):
         if rtype != "azurerm_storage_account":
+            continue
+        if any(f"azurerm_storage_account.{rname}." in c for c in covered):
             continue
         if "network_rules" not in config:
             findings.append(Finding(
@@ -110,6 +120,8 @@ def check_tls_version(parsed: dict, filepath: Path) -> list[Finding]:
                 resource_address=f"azurerm_storage_account.{rname}",
                 suggested_fix='min_tls_version = "TLS1_2"',
             ))
+        elif isinstance(tls, str) and "${" in tls:
+            continue  # set from a variable; cannot evaluate statically
         elif str(tls) != "TLS1_2":
             findings.append(Finding(
                 severity=Severity.HIGH,
@@ -134,7 +146,10 @@ def check_service_principal_scope(parsed: dict, filepath: Path) -> list[Finding]
             continue
         scope = str(config.get("scope", ""))
         role = str(config.get("role_definition_name", ""))
-        if "subscription" in scope.lower() and role in ("Owner", "Contributor"):
+        is_sub_root = (
+            scope.lower().startswith("/subscriptions/") and "/resourcegroups/" not in scope.lower()
+        ) or "data.azurerm_subscription" in scope
+        if is_sub_root and role in ("Owner", "Contributor"):
             findings.append(Finding(
                 severity=Severity.HIGH,
                 category=Category.SECURITY,
@@ -154,18 +169,4 @@ def check_service_principal_scope(parsed: dict, filepath: Path) -> list[Finding]
                     f"}}"
                 ),
             ))
-    return findings
-
-
-def run_all_checks(parsed: dict, filepath: Path) -> list[Finding]:
-    """Run all security checks against a parsed HCL file."""
-    checks = [
-        check_public_network_access,
-        check_storage_network_rules,
-        check_tls_version,
-        check_service_principal_scope,
-    ]
-    findings: list[Finding] = []
-    for check in checks:
-        findings.extend(check(parsed, filepath))
     return findings

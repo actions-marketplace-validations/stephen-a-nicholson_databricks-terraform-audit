@@ -2,7 +2,7 @@
 
 Audits Databricks Terraform for security, standards and platform misconfigurations, and explains why each one matters.
 
-Point it at a directory of `.tf` files. It parses them properly (no regex), runs a fixed set of rules, and produces a severity-ranked report with a suggested fix for each finding. It runs locally in a couple of seconds, or as a GitHub Action on every pull request. No Terraform CLI, no cloud credentials, no API keys.
+Point it at a directory of `.tf` files. It parses them with a real HCL parser, runs a fixed set of rules, and produces a severity-ranked report with a suggested fix for each finding. It runs locally in a couple of seconds, or as a GitHub Action on every pull request. No Terraform CLI, no cloud credentials, no API keys.
 
 ![dbx-audit running on the adb-lakehouse module from Databricks' own examples](docs/terminal.png)
 
@@ -44,7 +44,12 @@ dbx-audit TARGET_DIR [OPTIONS]
                              Exit 1 if any finding is at or above this severity (default: none).
   --no-recursive             Only scan TARGET_DIR itself. Subdirectories are scanned by default;
                              .terraform/ is always skipped.
-  -q, --quiet                No progress output.
+  -p, --profile [baseline|hardened]
+                             Rule profile. Overrides .dbx-audit.toml.
+  -c, --config PATH          Config file. Default: .dbx-audit.toml in TARGET_DIR if present.
+  -q, --quiet                No progress output. Progress always goes to stderr, so
+                             `-f json -o -` is valid JSON with or without this.
+  --version
 ```
 
 Subdirectories are scanned as one project, so a check like "is there a metastore assignment anywhere" looks across `workspace.tf`, `unity_catalog.tf` and the module under `modules/`, rather than flagging each file for what lives in the one next to it.
@@ -83,6 +88,7 @@ jobs:
         with:
           path: infra/
           fail-on: high
+          # profile: hardened
 ```
 
 The job fails on any CRITICAL or HIGH finding, the full report goes into the job summary, and it's uploaded as an artifact. Set `fail-on: none` to run it as advisory only.
@@ -93,7 +99,7 @@ Run them too. They cover general Azure and storage hardening with thousands of p
 
 ## What it checks
 
-Fifteen baseline rules across three areas, plus seven in the hardened profile. Each one is documented in [`docs/RULES.md`](docs/RULES.md) with the reasoning.
+Fifteen baseline rules across three areas, plus seven in the hardened profile. A file that cannot be parsed is itself a CRITICAL finding rather than a silent skip. Each one is documented in [`docs/RULES.md`](docs/RULES.md) with the reasoning.
 
 | Area | Examples |
 |---|---|
@@ -124,11 +130,11 @@ The pattern is the point: the tool drafts, a reviewer (human or agent) has to be
 
 ```bash
 uv sync --extra dev
-uv run pytest -q         # 31 tests, including the two shipped examples
+uv run pytest -q         # 44 tests, including the three shipped examples
 uv run ruff check .
 ```
 
-`examples/clean-terraform/` is a small multi-file platform that must produce zero baseline findings and fail hardened in six known places. `examples/hardened-terraform/` adds Private Link, CMK, NCC, DNS and egress and must pass hardened clean. `examples/sample-terraform/` is a single file that must keep its three criticals. Both are asserted in CI, so a rule change that introduces a false positive fails the build.
+`examples/clean-terraform/` is a small multi-file platform that must produce zero baseline findings and fail hardened in six known places. `examples/hardened-terraform/` adds Private Link, CMK, NCC, DNS and egress and must pass hardened clean. `examples/sample-terraform/` is a single file that must keep its three criticals. All three are asserted in CI, so a rule change that introduces a false positive fails the build.
 
 To add a rule, see the bottom of [`docs/RULES.md`](docs/RULES.md).
 

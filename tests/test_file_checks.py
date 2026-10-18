@@ -126,3 +126,33 @@ def test_workspace_public_access_unset_is_medium(tf) -> None:
     assert check_public_network_access(*tf(off)) == []
     # Only workspaces are flagged for relying on the default.
     assert check_public_network_access(*tf('resource "azurerm_storage_account" "s" { name = "s" }')) == []
+
+
+def test_tls_from_variable_is_not_flagged(tf) -> None:
+    assert check_tls_version(*tf('resource "azurerm_storage_account" "x" { min_tls_version = var.tls }')) == []
+
+
+def test_separate_network_rules_resource_satisfies_check(tf) -> None:
+    src = '''
+resource "azurerm_storage_account" "x" { name = "x" }
+resource "azurerm_storage_account_network_rules" "x" {
+  storage_account_id = azurerm_storage_account.x.id
+  default_action     = "Deny"
+}
+'''
+    assert check_storage_network_rules(*tf(src)) == []
+
+
+def test_resource_group_scope_is_not_flagged(tf) -> None:
+    rg = 'resource "azurerm_role_assignment" "r" { scope = "/subscriptions/${var.sub}/resourceGroups/rg-x" role_definition_name = "Contributor" principal_id = "p" }'
+    sub = 'resource "azurerm_role_assignment" "r" { scope = data.azurerm_subscription.current.id role_definition_name = "Owner" principal_id = "p" }'
+    assert check_service_principal_scope(*tf(rg)) == []
+    assert check_service_principal_scope(*tf(sub)) != []
+
+
+def test_hive_metastore_in_comment_is_ignored(tf) -> None:
+    assert check_legacy_hive_metastore(*tf('# migrated off hive_metastore in 2025\nresource "databricks_grants" "g" { catalog = "main" }')) == []
+
+
+def test_backend_only_terraform_block_is_not_unpinned(tf) -> None:
+    assert check_provider_version(*tf('terraform { backend "azurerm" { key = "x" } }')) == []

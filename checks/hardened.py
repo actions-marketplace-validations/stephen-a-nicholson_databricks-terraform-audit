@@ -280,19 +280,3 @@ def check_egress_control(project: Project) -> list[Finding]:
             "  }\n}"
         ),
     )]
-
-
-def run_all_checks(project: Project) -> list[Finding]:
-    checks = [
-        check_backend_private_link,
-        check_frontend_private_link,
-        check_storage_private_endpoints,
-        check_customer_managed_keys,
-        check_serverless_ncc,
-        check_private_dns_zone,
-        check_egress_control,
-    ]
-    findings: list[Finding] = []
-    for check in checks:
-        findings.extend(check(project))
-    return findings

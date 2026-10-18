@@ -31,10 +31,11 @@ Markdown audit report with findings + suggested fixes
 
 - **HCL parsing**: Use `python-hcl2` to parse `.tf` files into Python dicts. Never use regex for Terraform parsing. Every parse goes through `checks.helpers.normalise()`, because python-hcl2 8.x keeps quote characters on labels and strings and the rules match on bare names. The dependency is pinned `<8` as well; `tests/test_hcl2_compat.py` feeds the 8.x shape in directly so the normaliser is tested whichever version is installed.
 - **Finding model**: Every check returns a list of `Finding` dataclasses (see `checks/models.py`) with severity, message, file path, and suggested fix.
-- **Subagents**: The `.claude/agents/` directory contains three read-only subagents. These add an AI reasoning layer on top of the deterministic Python checks — they can explain *why* something is a problem and suggest context-aware fixes.
+- **Subagents**: The `.claude/agents/` directory contains three read-only subagents. These add an AI reasoning layer on top of the deterministic Python checks: they can explain *why* something is a problem and suggest context-aware fixes.
 - **Per-file vs project checks**: A rule that asks "does a resource of type X exist" must be a project check in `checks/project.py`, because X usually lives in a different file from the one that needs it. Per-file checks only inspect the resource in front of them.
 - **Recursive by default**: `.tf` files in subdirectories are part of the same project. `.terraform/` is always skipped.
-- **Examples are tests**: `examples/clean-terraform/` must produce zero findings and `examples/sample-terraform/` must keep its three criticals. CI asserts both.
+- **Examples are tests**: `examples/clean-terraform/` must produce zero baseline findings, `examples/hardened-terraform/` must pass hardened clean, and `examples/sample-terraform/` must keep its three criticals. CI asserts all three.
+- **Parse failures are findings**: a `.tf` file that cannot be parsed produces an X001 CRITICAL rather than being skipped. Progress and diagnostics go to stderr; stdout is reserved for `-o -` output so JSON stays valid.
 - **Rules live in the registry**: `checks/registry.py` lists every rule with an id (S/T/D/P/H prefix), a profile and a scope. The orchestrator runs what `rules_for(profile)` returns. Adding a rule means a function, a registry entry, tests, and a row in `docs/RULES.md`.
 - **Profiles are cumulative**: baseline, then hardened. `.dbx-audit.toml` (see `config.py`) selects the profile, overrides required tags, and disables rules, each with a mandatory reason.
 - **Expressions are not findings**: a value like `${var.x}` cannot be evaluated statically. Hardened rules treat it as configured and do not flag it.
@@ -47,7 +48,7 @@ Markdown audit report with findings + suggested fixes
 - `python-hcl2` for HCL parsing
 - `click` for CLI
 - `dataclasses` for the Finding model
-- No external AI SDKs — the subagents run natively in Claude Code
+- No external AI SDKs: the subagents run natively in Claude Code
 
 ## File conventions
 

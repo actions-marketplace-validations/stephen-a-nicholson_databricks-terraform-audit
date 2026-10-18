@@ -10,7 +10,10 @@ def check_legacy_hive_metastore(parsed: dict, filepath: Path) -> list[Finding]:
     """Flag references to the legacy hive_metastore. Metastore assignment is a project-level check."""
     findings: list[Finding] = []
 
-    content = filepath.read_text()
+    # Strip line comments so prose about migrating off Hive does not fire.
+    content = "\n".join(
+        line.split("#", 1)[0].split("//", 1)[0] for line in filepath.read_text().splitlines()
+    )
     if "hive_metastore" in content:
         findings.append(Finding(
             severity=Severity.HIGH,
@@ -137,18 +140,4 @@ def check_workspace_sku(parsed: dict, filepath: Path) -> list[Finding]:
                 resource_address=f"azurerm_databricks_workspace.{rname}",
                 suggested_fix='sku = "premium"',
             ))
-    return findings
-
-
-def run_all_checks(parsed: dict, filepath: Path) -> list[Finding]:
-    """Run all Databricks checks against a parsed HCL file."""
-    checks = [
-        check_legacy_hive_metastore,
-        check_vnet_injection,
-        check_cluster_without_policy,
-        check_workspace_sku,
-    ]
-    findings: list[Finding] = []
-    for check in checks:
-        findings.extend(check(parsed, filepath))
     return findings

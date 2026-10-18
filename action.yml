@@ -18,6 +18,10 @@ inputs:
     description: "Path to write the Markdown report to. Uploaded as a job artifact."
     required: false
     default: "audit_report.md"
+  profile:
+    description: "Rule profile: baseline or hardened. Overrides .dbx-audit.toml in the audited directory."
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -32,9 +36,11 @@ runs:
     - name: Run audit
       shell: bash
       run: |
+        PROFILE_FLAG=""
+        if [ -n "${{ inputs.profile }}" ]; then PROFILE_FLAG="--profile ${{ inputs.profile }}"; fi
         dbx-audit "${{ inputs.path }}" \
           --output "${{ inputs.report }}" \
-          --fail-on "${{ inputs['fail-on'] }}" | tee audit_output.txt
+          --fail-on "${{ inputs['fail-on'] }}" $PROFILE_FLAG
 
     - name: Add report to job summary
       if: always()

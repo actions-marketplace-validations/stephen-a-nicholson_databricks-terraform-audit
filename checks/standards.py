@@ -75,6 +75,9 @@ def check_provider_version(parsed: dict, filepath: Path) -> list[Finding]:
     """Flag missing or unpinned provider versions."""
     findings: list[Finding] = []
     terraform_blocks = parsed.get("terraform", [])
+    # Only blocks that declare providers are in scope; a backend-only
+    # terraform block in backend.tf is not an unpinned provider.
+    terraform_blocks = [b for b in terraform_blocks if b.get("required_providers")]
 
     has_version_constraint = False
     for block in terraform_blocks:
@@ -155,18 +158,4 @@ def check_hardcoded_values(parsed: dict, filepath: Path) -> list[Finding]:
                 "}"
             ),
         ))
-    return findings
-
-
-def run_all_checks(parsed: dict, filepath: Path) -> list[Finding]:
-    """Run all standards checks against a parsed HCL file."""
-    checks = [
-        check_required_tags,
-        check_provider_version,
-        check_lifecycle_protection,
-        check_hardcoded_values,
-    ]
-    findings: list[Finding] = []
-    for check in checks:
-        findings.extend(check(parsed, filepath))
     return findings

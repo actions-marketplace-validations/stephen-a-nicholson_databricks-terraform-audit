@@ -1,12 +1,13 @@
 """Orchestrator: discover files, parse them, run the active rules, sort the findings."""
 
+import sys
 from pathlib import Path
 
 import hcl2
 
 from checks import standards
 from checks.helpers import normalise
-from checks.models import Finding
+from checks.models import Category, Finding, Severity
 from checks.project import Project
 from checks.registry import Rule, rules_for
 from config import Config
@@ -15,14 +16,29 @@ from config import Config
 SKIP_DIRS = {".terraform", ".git", "node_modules", ".venv"}
 
 
-def parse_tf_file(filepath: Path) -> dict | None:
-    """Parse a single .tf file into a Python dict. Returns None if it cannot be parsed."""
+def parse_tf_file(filepath: Path) -> dict | Finding:
+    """Parse a single .tf file. On failure, return a CRITICAL finding instead of silently skipping.
+
+    A file the tool cannot read is a file it cannot vouch for. Treating that as
+    a pass would let a broken .tf sail through a pull request gate.
+    """
     try:
         with open(filepath) as f:
             return normalise(hcl2.load(f))
     except Exception as e:  # noqa: BLE001 - python-hcl2 raises a mix of lark and value errors
-        print(f"  ⚠ Could not parse {filepath}: {e}")
-        return None
+        first_line = str(e).strip().splitlines()[0] if str(e).strip() else type(e).__name__
+        return Finding(
+            rule_id="X001",
+            severity=Severity.CRITICAL,
+            category=Category.STANDARDS,
+            title="File could not be parsed",
+            message=(
+                f"{filepath.name} could not be parsed as HCL, so none of its resources "
+                f"were audited. Parser said: {first_line}"
+            ),
+            filepath=filepath,
+            suggested_fix="Run `terraform validate` or `terraform fmt` on this file.",
+        )
 
 
 def discover_tf_files(directory: Path, recursive: bool = True) -> list[Path]:
@@ -37,7 +53,7 @@ def discover_tf_files(directory: Path, recursive: bool = True) -> list[Path]:
         if not any(part in SKIP_DIRS for part in p.relative_to(directory).parts)
     )
     if not tf_files:
-        print(f"No .tf files found in {directory}")
+        print(f"No .tf files found in {directory}", file=sys.stderr)
     return tf_files
 
 
@@ -68,9 +84,10 @@ def run_audit(
 
     for filepath in tf_files:
         if not quiet:
-            print(f"  Scanning {filepath.relative_to(directory)}...")
+            print(f"  Scanning {filepath.relative_to(directory)}...", file=sys.stderr)
         parsed = parse_tf_file(filepath)
-        if parsed is None:
+        if isinstance(parsed, Finding):
+            all_findings.append(parsed)
             continue
         project.files[filepath] = parsed
         for rule in file_rules:

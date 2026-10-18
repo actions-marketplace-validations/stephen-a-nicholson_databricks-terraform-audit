@@ -56,3 +56,27 @@ def test_cli_passes_clean_dir_with_fail_on(clean_dir: Path) -> None:
         text=True,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_unparseable_file_is_a_critical_finding(tmp_path: Path) -> None:
+    (tmp_path / "broken.tf").write_text('resource "azurerm_storage_account" "x" {\n  name = \n')
+    findings = run_audit(tmp_path, quiet=True)
+    assert [f.rule_id for f in findings] == ["X001"]
+    assert findings[0].severity.value == "CRITICAL"
+
+
+def test_json_to_stdout_is_valid_without_quiet(sample_dir: Path) -> None:
+    result = subprocess.run(
+        [sys.executable, "main.py", str(sample_dir), "-o", "-", "-f", "json"],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    payload = json.loads(result.stdout)  # progress must have gone to stderr
+    assert payload["total"] == 17
+    assert "Scanning" in result.stderr
+
+
+def test_empty_directory_passes(tmp_path: Path) -> None:
+    assert run_audit(tmp_path, quiet=True) == []

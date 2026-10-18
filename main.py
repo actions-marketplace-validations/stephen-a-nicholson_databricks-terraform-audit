@@ -90,20 +90,20 @@ def main(
 
     if not quiet:
         src = f" (config: {config.source})" if config.source else ""
-        click.echo(f"\n🔍 Auditing Terraform configs in {target_dir} [profile: {config.profile}]{src}\n")
+        click.echo(f"\n🔍 Auditing Terraform configs in {target_dir} [profile: {config.profile}]{src}\n", err=True)
         for rule_id, reason in config.disabled.items():
-            click.echo(f"  skipping {rule_id}: {reason}")
+            click.echo(f"  skipping {rule_id}: {reason}", err=True)
 
     findings = run_audit(target_dir, recursive=not no_recursive, quiet=quiet, config=config)
 
     if not quiet:
         if findings:
-            click.echo(f"\n⚠ Found {len(findings)} issue(s):\n")
+            click.echo(f"\n⚠ Found {len(findings)} issue(s):\n", err=True)
             for f in findings:
                 rel = f.filepath.relative_to(target_dir)
-                click.echo(f"  {EMOJI[f.severity.value]} [{f.severity.value}] {f.rule_id} {f.title} — {rel}")
+                click.echo(f"  {EMOJI[f.severity.value]} [{f.severity.value}] {f.rule_id} {f.title} — {rel}", err=True)
         else:
-            click.echo("\n✅ No issues found!")
+            click.echo("\n✅ No issues found!", err=True)
 
     if fmt == "json":
         payload = json.dumps(
@@ -120,7 +120,7 @@ def main(
         else:
             output.write_text(payload)
             if not quiet:
-                click.echo(f"\n📄 JSON written to {output}")
+                click.echo(f"\n📄 JSON written to {output}", err=True)
     elif str(output) == "-":
         click.echo(generate_report(findings, target_dir))
     else:

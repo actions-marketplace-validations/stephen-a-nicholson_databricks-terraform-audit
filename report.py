@@ -1,5 +1,6 @@
 """Generate a Markdown audit report from findings."""
 
+import sys
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
@@ -80,4 +81,4 @@ def write_report(
     report = generate_report(findings, target_dir)
     output_path.write_text(report)
     if not quiet:
-        print(f"\n📄 Report written to {output_path}")
+        print(f"\n📄 Report written to {output_path}", file=sys.stderr)

@@ -40,9 +40,16 @@ def load_config(target_dir: Path, explicit: Path | None = None) -> Config:
         raw = tomllib.load(f)
     cfg = Config(source=path)
     cfg.profile = str(raw.get("profile", cfg.profile))
+    from checks.registry import PROFILES, RULES  # local import avoids a cycle at module load
+
+    if cfg.profile not in PROFILES:
+        raise ConfigError(f"unknown profile {cfg.profile!r}; expected one of {', '.join(PROFILES)}")
+    known = {r.id for r in RULES}
     if "required_tags" in raw:
         cfg.required_tags = [str(t) for t in raw["required_tags"]]
     for rule_id, settings in (raw.get("rules") or {}).items():
+        if rule_id not in known:
+            raise ConfigError(f"rules.{rule_id}: no such rule (see docs/RULES.md for ids)")
         if not isinstance(settings, dict):
             raise ConfigError(f"rules.{rule_id} must be a table")
         if settings.get("enabled", True) is False:

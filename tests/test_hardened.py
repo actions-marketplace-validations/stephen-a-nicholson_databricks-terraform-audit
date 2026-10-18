@@ -55,3 +55,14 @@ def test_required_tags_override(tmp_path: Path) -> None:
     )
     findings = run_audit(tmp_path, quiet=True, config=load_config(tmp_path))
     assert not [f for f in findings if f.rule_id == "T001"]
+
+
+def test_unknown_profile_and_rule_are_config_errors(tmp_path: Path) -> None:
+    import pytest
+
+    (tmp_path / ".dbx-audit.toml").write_text('profile = "hardend"\n')
+    with pytest.raises(ConfigError, match="unknown profile"):
+        load_config(tmp_path)
+    (tmp_path / ".dbx-audit.toml").write_text('[rules.H999]\nenabled = false\nreason = "x"\n')
+    with pytest.raises(ConfigError, match="no such rule"):
+        load_config(tmp_path)

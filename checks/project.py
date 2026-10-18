@@ -129,16 +129,3 @@ def check_terraform_block_exists(project: Project) -> list[Finding]:
             "}"
         ),
     )]
-
-
-def run_all_checks(project: Project) -> list[Finding]:
-    """Run every project-level check."""
-    checks = [
-        check_unity_catalog_assignment,
-        check_cluster_policy_exists,
-        check_terraform_block_exists,
-    ]
-    findings: list[Finding] = []
-    for check in checks:
-        findings.extend(check(project))
-    return findings
