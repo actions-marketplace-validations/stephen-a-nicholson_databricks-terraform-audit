@@ -79,7 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: stephen-a-nicholson/databricks-terraform-audit@v0.1.0
+      - uses: stephen-a-nicholson/databricks-terraform-audit@v0.2.0
         with:
           path: infra/
           fail-on: high
