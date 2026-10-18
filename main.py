@@ -25,6 +25,7 @@ def _exceeds_threshold(findings: list[Finding], fail_on: str) -> bool:
 
 
 @click.command()
+@click.version_option(package_name="databricks-terraform-audit", prog_name="dbx-audit")
 @click.argument("target_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
 @click.option(
     "--output", "-o",
